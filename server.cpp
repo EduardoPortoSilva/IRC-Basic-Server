@@ -29,8 +29,21 @@ bool isSocketAlive(int socket) { // Verifica se o socket está funcionando
     return (error == 0 && result == 0);
 }
 
+void removeSocket(int socket){
+    close(socket);
+    sockets.erase(socket);
+    ip_list.erase(socket);
+    cout << "Cliente desconectado!" << endl;
+}
+
 int send_message(int socket, string message){ // Manda uma mensagem de texto para um socket
-    return send(socket, message.c_str(), message.length(), 0);
+    for (int i = 0; i < 5; i++){
+        if (send(socket, message.c_str(), message.length(), 0) != -1){
+            return 1;
+        }
+    }
+    removeSocket(socket);
+    return 0;
 }
 
 void broadcastMessage(string message, string channel){ // Manda uma mensagem para todos os sockets que mantem um canal
@@ -40,6 +53,8 @@ void broadcastMessage(string message, string channel){ // Manda uma mensagem par
         }
     }
 }
+
+
 
 bool validateChannel(string channel){ // Valida o nome do canal segundo o padrão dado
     if (channel[0] != '&' && channel[0] != '#'){
@@ -72,13 +87,11 @@ void kickUser(string user){ // Desconecta um usuario a pedido de um ADM, não te
         if (s.second.second == user){
             send_message(s.first, "Admin disconnect");
             sockets_exclude.insert(s.first);
-            close(s.first);
             cout << "Cliente desconectado!" << endl;
         }
     }
     for (auto s : sockets_exclude){ // Limpa a lista de sockets e IPs
-        sockets.erase(s);
-        ip_list.erase(s);
+        removeSocket(s);
     }
 }
 
@@ -175,9 +188,7 @@ void handleClient(int clientSocket) { // Gerencia todo o loop de recebimento de 
         }
         if (bytesRead == -1) {
             cerr << "Erro ao ler os dados do cliente." << endl;
-            sockets.erase(clientSocket);
-            ip_list.erase(clientSocket);
-            close(clientSocket);
+            removeSocket(clientSocket);
             return ;
         }
         if (buffer[0] == '/'){//Verifica se é um comando 
